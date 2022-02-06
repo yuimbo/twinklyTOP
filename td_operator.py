@@ -1,6 +1,7 @@
 # me - this DAT
 # scriptOp - the OP which is cooking
 import sys
+#https://docs.derivative.ca/Category:Python#Installing_Custom_Python_Packages
 mypath = "/Users/jimmyghaderi/.pyenv/versions/3.7.12/lib/python3.7/site-packages"
 if mypath not in sys.path:
     sys.path.append(mypath)
@@ -56,7 +57,6 @@ def makeImg(input_op, coords, rgbw=False):
             out.append([r, g, b, 0])
         else:
             out.append([r,g,b])
-        #TODO: Detect & handle RGBW
 
     return flatten(out)
 
