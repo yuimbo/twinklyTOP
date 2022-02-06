@@ -27,10 +27,12 @@ except xled.exceptions.DiscoverTimeout as e:
 
 
 devices = sorted(devices, key = lambda d: d.id)
+
 controls = list(map(lambda d: deviceToController(d), devices))
 for control in controls:
     control.set_mode("rt")
 layouts = list(map(lambda c: c.get_led_layout().data, controls))
+device_infos = list(map(lambda c: c.get_device_info().data, controls))
 
 
 
@@ -43,14 +45,17 @@ def normalizedFloatToInt8(float_val):
 def renormalize(coord):
     return (coord +1)/2
 
-def makeImg(input_op, coords):
+def makeImg(input_op, coords, rgbw=False):
     out = []
     for coord in coords:
         colours = input_op.sample(
             u=renormalize(coord['x']), v=coord['y'])
         
         [r, g, b, a] = list(map(lambda c: normalizedFloatToInt8(c), colours))
-        out.append([r,g,b])
+        if rgbw:
+            out.append([r, g, b, 0])
+        else:
+            out.append([r,g,b])
         #TODO: Detect & handle RGBW
 
     return flatten(out)
@@ -78,9 +83,9 @@ def onCook(scriptOp):
 
     layout = layouts[current_id]
     coords = layout['coordinates']
-    
 
-    frame = io.BytesIO(bytes(makeImg(scriptOp.inputs[0], coords)))
+    frame = io.BytesIO(bytes(
+        makeImg(scriptOp.inputs[0], coords, device_infos[current_id]['led_profile'] == 'RGBW')))
 
     #TODO: Handle closing previous socket when changing device
     control.set_rt_frame_socket(frame, 3)
