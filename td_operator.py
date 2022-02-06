@@ -14,44 +14,28 @@ def deviceToController(device):
     return xled.ControlInterface(
         device.ip_address, device.hw_address)
 
+def deviceNames(device):
+    return device.id
+
 devices = []
 
-print("Discovery done")
 try:
     for device in xled.discover.xdiscover(timeout=2):
         devices.append(device)
 except xled.exceptions.DiscoverTimeout as e:
     pass
 
-print(devices)
 
+devices = sorted(devices, key = lambda d: d.id)
 controls = list(map(lambda d: deviceToController(d), devices))
-
-control = controls[1]
-#print(control.get_mode().data)
-#print(control.get_led_movie_config().data)
-
+for control in controls:
+    control.set_mode("rt")
+layouts = list(map(lambda c: c.get_led_layout().data, controls))
 
 
-layout = control.get_led_layout().data
-coords = layout['coordinates']
-num_leds = len(coords)
-print(f'We have {len(coords)} leds')
 
 def flatten(inlist):
     return [a for tup in inlist for a in tup]
-
-def randomImg():
-    def randomValue():
-        return numpy.random.randint(0, 255)
-
-    def randomPixel():
-        return randomValue(), randomValue(), randomValue()
-
-
-    img = [randomPixel() for lamp in range(num_leds)]
-
-    return flatten(img)
 
 def normalizedFloatToInt8(float_val):
     return round(float_val * 255)
@@ -59,7 +43,7 @@ def normalizedFloatToInt8(float_val):
 def renormalize(coord):
     return (coord +1)/2
 
-def inputImg(input_op):
+def makeImg(input_op, coords):
     out = []
     for coord in coords:
         colours = input_op.sample(
@@ -67,38 +51,21 @@ def inputImg(input_op):
         
         [r, g, b, a] = list(map(lambda c: normalizedFloatToInt8(c), colours))
         out.append([r,g,b])
+        #TODO: Detect & handle RGBW
 
-    #print(out)
     return flatten(out)
 
-def getImg(input_op):
-    return inputImg(input_op)
+device_par = None
+previous_device_par = None
 
-control.set_mode("rt")
-
-
-
-
-#control.set_led_effects_current(effects["unique_ids"][2])
-#control.set_led_effects_current(0)
-
-
-#controls[0].set_brightness(100)
-#controls[1].set_brightness(100)
-
-pars = None
 def onSetupParameters(scriptOp):
+    page = scriptOp.appendCustomPage('Twinkly')
+    [device_par] = page.appendMenu("Device")
 
-    #TODO: UI for device selection
-    #page = scriptOp.appendCustomPage('Twinkly')
-    #pars = page.appendStrMenu("Device", label="device")
-    #print(pars[0].expr)
-
-    
+    device_par.menuNames = list(range(len(devices)))
+    device_par.menuLabels = list(map(lambda d: deviceNames(d), devices))
 
     return
-
-# called whenever custom pulse parameter is pushed
 
 
 def onPulse(par):
@@ -106,12 +73,16 @@ def onPulse(par):
 
 
 def onCook(scriptOp):
-    #a = numpy.random.randint(0, high=255, size=(2, 2, 4), dtype='uint8')
-    #scriptOp.copyNumpyArray(a)
-    
-    #.sample(x=0,y=0)
+    current_id = scriptOp.pars("Device")[0]
+    control = controls[current_id]
 
-    frame = io.BytesIO(bytes(getImg(scriptOp.inputs[0])))
+    layout = layouts[current_id]
+    coords = layout['coordinates']
+    
+
+    frame = io.BytesIO(bytes(makeImg(scriptOp.inputs[0], coords)))
+
+    #TODO: Handle closing previous socket when changing device
     control.set_rt_frame_socket(frame, 3)
 
     return
