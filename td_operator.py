@@ -52,7 +52,9 @@ def remapImg(image, coords, rgbw=False):
             round(renormalize(coord['x'] * w))]
         [r, g, b, a] = list(map(lambda c: normalizedFloatToInt8(c), channels))
         if rgbw:
-            channels = [0, r, g, b]
+            w = (min([r,g,b]))
+            [r,g,b] = [c - w for c in [r,g,b]]
+            channels = [w, r, g, b]
         else:
             channels = [r,g,b]
         out.append([c * 255 for c in channels])
